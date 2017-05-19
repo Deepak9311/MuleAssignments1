@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:smtp="http://www.mulesoft.org/schema/mule/smtp" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/smtp http://www.mulesoft.org/schema/mule/smtp/current/mule-smtp.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <db:mysql-config name="MySQL_Configuration" host="localhost" port="3306" user="root" password="Deepak@1993" database="deepak" doc:name="MySQL Configuration"/>
+    <smtp:connector name="SMTP" validateConnections="true" doc:name="SMTP"/>
+    <smtp:gmail-connector name="Gmail" validateConnections="true" doc:name="Gmail"/>
+    <smtp:gmail-connector name="Gmail1" validateConnections="true" doc:name="Gmail"/>
+    <flow name="assignment3Flow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/mail" allowedMethods="POST" doc:name="HTTP"/>
+        <ee:multi-transactional action="ALWAYS_BEGIN" doc:name="Transactional">
+            <db:insert config-ref="MySQL_Configuration" doc:name="Database">
+                <db:parameterized-query><![CDATA[insert into
+Employee values
+(#[message.inboundProperties.'http.query.params'.emp_id],
+#[message.inboundProperties.'http.query.params'.First_Name],
+#[message.inboundProperties.'http.query.params'.Last_Name])]]></db:parameterized-query>
+            </db:insert>
+            <object-to-string-transformer doc:name="Object to String"/>
+            <file:outbound-endpoint path="C:\Users\Aakash A Talreja\Documents\Deepak\New folder\input" outputPattern="deepak.txt" responseTimeout="10000" doc:name="File"/>
+            <file:file-to-string-transformer doc:name="File to String"/>
+            <set-attachment attachmentName="attachement" value="deepak.txt" contentType="text/plain" doc:name="Attachment"/>
+            <smtp:outbound-endpoint host="smtp.gmail.com" port="587" user="deepakdhanawade56@gmail.com" password="9594585156" connector-ref="Gmail1" to="deepak.dhanawade@eaisystems.com" from="deepakdhanawade56@gmail.com" subject="Hello" responseTimeout="10000" doc:name="SMTP"/>
+            <rollback-exception-strategy doc:name="Rollback Exception Strategy" maxRedeliveryAttempts="3">
+                <logger message="Transaction Rollback" level="INFO" doc:name="Logger"/>
+                <set-payload value="#['Transaction Rollback']" doc:name="Set Payload"/>
+                <on-redelivery-attempts-exceeded>
+                    <logger message="Transaction Exhausted" level="INFO" doc:name="Logger"/>
+                </on-redelivery-attempts-exceeded>
+            </rollback-exception-strategy>
+        </ee:multi-transactional>
+    </flow>
+</mule>
